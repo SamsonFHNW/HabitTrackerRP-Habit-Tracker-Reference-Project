@@ -1,0 +1,379 @@
+# HabitTrackerRP – tutorial version with detailed comments
+# This file is a learning version of main.py.
+# It implements a console-based habit tracker with:
+# - automatic created_date and completed_date
+# - daily / weekly frequency
+# - automatic status reset (pending/done) based on date/week
+# - completion_history: all dates when a habit was completed
+# - filtering by status and frequency
+#
+# The actual submission version removes most of these comments and is more compact.
+
+import csv              # Built-in module to read/write CSV files
+import os               # Built-in module to interact with the operating system (e.g., check if a file exists)
+from datetime import datetime  # Class to work with dates and times
+
+
+# Name of the CSV file we use to store habits
+DATA_FILE = "habits.csv"
+
+# Allowed values for habit frequency. A habit is either daily or weekly.
+FREQUENCIES = ["daily", "weekly"]
+
+# Allowed values for habit status. We keep it simple: either pending or done.
+STATUSES = ["pending", "done"]
+
+# Column names (headers) used in the CSV file.
+# Every row in habits.csv will have these fields.
+FIELDS = [
+    "id",                  # unique identifier (1, 2, 3, …)
+    "description",         # what the habit is about
+    "frequency",           # "daily" or "weekly"
+    "created_date",        # date when the habit was created
+    "status",              # "pending" or "done" for the current period
+    "completed_date",      # last date when the habit was marked done
+    "completion_history",  # all completion dates separated by "|"
+]
+
+
+def today_str():
+    """
+    Return today's date as a string in format YYYY-MM-DD.
+    Example: "2025-11-19"
+    """
+    return datetime.today().strftime("%Y-%m-%d")
+
+
+def current_week_code():
+    """
+    Return the current calendar week as a string like '2025-W47'.
+    We use ISO calendar weeks (Monday is the first day of the week).
+    """
+    year, week, _ = datetime.today().isocalendar()  # isocalendar() returns (year, week, weekday)
+    return f"{year}-W{week:02d}"                    # format with leading zero: W01, W02, ...
+
+
+def week_code_from_date(date_str):
+    """
+    Given a date as 'YYYY-MM-DD', return its week code 'YYYY-Www'.
+    This lets us compare weeks for weekly habits.
+    """
+    dt = datetime.strptime(date_str, "%Y-%m-%d")    # convert string to datetime object
+    year, week, _ = dt.isocalendar()               # get ISO week info for that date
+    return f"{year}-W{week:02d}"                   # convert to 'YYYY-Www' string
+
+
+def ensure_file():
+    """
+    Make sure the CSV file exists with the correct header.
+    If it does not exist, create it and write the header row.
+    """
+    if not os.path.exists(DATA_FILE):                      # check if habits.csv is missing
+        with open(DATA_FILE, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, FIELDS)             # create writer using our header fields
+            writer.writeheader()                           # write only the header row
+
+
+def load_habits():
+    """
+    Load all habits from the CSV file.
+    Returns a list of dictionaries, one per row.
+    """
+    with open(DATA_FILE, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)                         # DictReader reads rows as dicts keyed by FIELDS
+        return list(reader)                                # convert the iterator to a list
+
+
+def save_habits(habits):
+    """
+    Save the given list of habit dictionaries back to the CSV file.
+    Overwrites the existing file completely.
+    """
+    with open(DATA_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, FIELDS)                 # create writer with the same field order
+        writer.writeheader()                               # write header row
+        writer.writerows(habits)                           # write all habit dicts as rows
+
+
+def next_id(habits):
+    """
+    Compute the next available habit ID as an integer.
+    If there are no habits yet, return 1.
+    Otherwise, find the maximum existing id and add 1.
+    """
+    # Extract all ids, convert to int, take max; default=0 if list is empty.
+    return 1 + max([int(h["id"]) for h in habits], default=0)
+
+
+def ask_nonempty(prompt):
+    """
+    Ask the user for input until they enter a non-empty string.
+    Returns the entered string.
+    """
+    while True:
+        text = input(prompt).strip()              # read input and remove extra spaces
+        if text:                                  # if not empty
+            return text                           # return it
+        print("Input cannot be empty.")           # otherwise, show error and repeat
+
+
+def ask_choice(label, options):
+    """
+    Ask the user to choose one of the given options.
+    - label: text shown before options (e.g. "Frequency")
+    - options: list like ["daily", "weekly"]
+
+    This function normalizes user input to lowercase and checks if it's in the allowed list.
+    """
+    options_lower = [o.lower() for o in options]  # normalize allowed options to lowercase
+    while True:
+        value = input(f"{label} {options}: ").strip().lower()  # show options and read input
+        if value in options_lower:                # if input matches one of the allowed options
+            return value                          # return it
+        print(f"Please enter one of: {', '.join(options)}.")  # otherwise, show allowed values
+
+
+def refresh_statuses(habits):
+    """
+    Auto-reset daily and weekly habits to 'pending' when the period changes.
+
+    Logic:
+    - For habits with no completed_date: status becomes 'pending'.
+    - For daily habits:
+        - if completed_date == today   -> status = 'done'
+        - else                         -> status = 'pending'
+    - For weekly habits:
+        - if week(completed_date) == current week -> status = 'done'
+        - else                                    -> status = 'pending'
+    """
+    today = today_str()                           # e.g. "2025-11-19"
+    current_week = current_week_code()            # e.g. "2025-W47"
+    for h in habits:
+        last = h.get("completed_date", "").strip()    # read last completed date (may be empty)
+        if not last:                                  # if there is no completed_date at all
+            h["status"] = "pending"                   # ensure it's pending
+            continue                                  # move on to next habit
+        if h["frequency"] == "daily":                 # daily habit logic
+            h["status"] = "done" if last == today else "pending"
+        else:                                         # weekly habit logic
+            last_week = week_code_from_date(last)     # week code of last completion
+            h["status"] = "done" if last_week == current_week else "pending"
+    return habits
+
+    
+def show_habits(habits):
+    """
+    Print all habits in a formatted table.
+    Shows: ID, frequency, created date, status, last done, history, description.
+    """
+    if not habits:
+        print("No habits found.")
+        return
+
+    # Print header row with column titles (aligned)
+    print(
+        f"{'ID':<3} {'Freq':<7} {'Created':<10} "
+        f"{'Status':<7} {'LastDone':<10} History | Description"
+    )
+    print("-" * 100)  # separator line
+
+    # Print each habit as a formatted row
+    for h in habits:
+        history = h.get("completion_history", "")
+        print(
+            f"{h['id']:<3} "
+            f"{h['frequency']:<7} "
+            f"{h['created_date']:<10} "
+            f"{h['status']:<7} "
+            f"{h['completed_date']:<10} "
+            f"{history} | {h['description']}"
+        )
+
+
+def append_completion_to_history(habit, date_str):
+    """
+    Append a completion date to the habit's completion_history field.
+
+    completion_history is a string of dates separated by "|" like:
+        "2025-01-21|2025-01-22|2025-01-25"
+
+    We avoid adding the same date twice in a row.
+    """
+    history = habit.get("completion_history", "").strip()
+    if history:
+        parts = history.split("|")         # split existing history into list of dates
+        if parts[-1] != date_str:          # if last date is not this one
+            history = history + "|" + date_str   # append new date separated by "|"
+    else:
+        history = date_str                 # first entry in history
+
+    habit["completion_history"] = history  # store updated history back in habit
+
+
+def add_habit():
+    """
+    Add a new habit to the CSV file.
+
+    Steps:
+    - load existing habits
+    - ask for description
+    - ask for frequency (daily/weekly)
+    - set created_date = today, status = pending, no completed_date/history yet
+    - save back to CSV
+    """
+    habits = load_habits()
+    habits.append(
+        {
+            "id": str(next_id(habits)),                    # unique ID as string
+            "description": ask_nonempty("Description: "),  # ask user
+            "frequency": ask_choice("Frequency", FREQUENCIES),  # daily or weekly
+            "created_date": today_str(),                   # today
+            "status": "pending",                           # new habits start pending
+            "completed_date": "",                          # not completed yet
+            "completion_history": "",                      # no history yet
+        }
+    )
+    save_habits(habits)
+    print("Habit added.")
+
+
+def change_status_to_done():
+    """
+    Mark one habit as done.
+
+    Steps:
+    - refresh statuses (so daily/weekly logic is correctly applied)
+    - show current habits
+    - ask user which habit ID to mark done
+    - set status = done, completed_date = today
+    - append today to completion_history
+    - save back to CSV
+    """
+    habits = refresh_statuses(load_habits())  # get up-to-date statuses
+    save_habits(habits)                      # persist any changes from refresh
+    show_habits(habits)                      # show list to pick an ID from
+    if not habits:
+        return
+
+    habit_id = ask_nonempty("Enter habit ID to mark as done: ")
+    if not habit_id.isdigit():
+        print("ID must be a number.")
+        return
+
+    today = today_str()
+    found = False
+    for h in habits:
+        if h["id"] == habit_id:              # find the habit with this id
+            h["status"] = "done"             # update status
+            h["completed_date"] = today      # record last done date
+            append_completion_to_history(h, today)  # append date to history
+            found = True
+            break
+
+    if not found:
+        print("No habit with that ID.")
+        return
+
+    save_habits(habits)
+    print(f"Habit {habit_id} marked as done.")
+
+
+def remove_habit():
+    """
+    Remove a habit by its ID.
+    """
+    habits = load_habits()
+    show_habits(habits)
+    if not habits:
+        return
+
+    habit_id = ask_nonempty("Enter habit ID to delete: ")
+    before = len(habits)
+    # Keep all habits whose id is not the one to delete
+    habits = [h for h in habits if h["id"] != habit_id]
+
+    if len(habits) == before:
+        print("No habit with that ID.")
+        return
+
+    save_habits(habits)
+    print("Habit deleted.")
+
+
+def filter_habits():
+    """
+    Filter habits by status OR frequency.
+
+    Options:
+    - 1: filter by status (pending/done)
+    - 2: filter by frequency (daily/weekly)
+    """
+    habits = refresh_statuses(load_habits())  # make sure statuses are current
+    save_habits(habits)
+    if not habits:
+        print("No habits to filter.")
+        return
+
+    print("Filter by: 1=status 2=frequency")
+    choice = input("Choice: ").strip()
+
+    if choice == "1":
+        status = ask_choice("Status", STATUSES)
+        result = [h for h in habits if h["status"] == status]
+    elif choice == "2":
+        freq = ask_choice("Frequency", FREQUENCIES)
+        result = [h for h in habits if h["frequency"] == freq]
+    else:
+        print("Invalid choice.")
+        return
+
+    show_habits(result)
+
+
+def main():
+    """
+    Main entry point and menu loop.
+
+    On start:
+    - ensure CSV file exists
+    - load habits and refresh their statuses based on date/week
+    - save any updates
+    - then show menu until user chooses to exit
+    """
+    ensure_file()
+    habits = refresh_statuses(load_habits())
+    save_habits(habits)
+
+    while True:
+        print(
+            """
+HabitTrackerRP
+1) Add habit
+2) Mark habit as done
+3) Delete habit
+4) View all habits
+5) Filter habits
+6) Exit
+"""
+        )
+        choice = input("Select 1-6: ").strip()
+
+        if choice == "1":
+            add_habit()
+        elif choice == "2":
+            change_status_to_done()
+        elif choice == "3":
+            remove_habit()
+        elif choice == "4":
+            show_habits(load_habits())
+        elif choice == "5":
+            filter_habits()
+        elif choice == "6":
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid option.")
+
+
+if __name__ == "__main__":
+    main()

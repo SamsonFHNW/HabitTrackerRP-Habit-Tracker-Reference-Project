@@ -1,0 +1,231 @@
+import csv
+import os
+from datetime import datetime
+
+DATA_FILE = "habits.csv"
+FREQUENCIES = ["daily", "weekly"]
+STATUSES = ["pending", "done"]
+FIELDS = [
+    "id",
+    "description",
+    "frequency",
+    "created_date",
+    "status",
+    "completed_date",
+    "completion_history",
+]
+
+
+def today_str():
+    return datetime.today().strftime("%Y-%m-%d")
+
+
+def current_week_code():
+    year, week, _ = datetime.today().isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def week_code_from_date(date_str):
+    dt = datetime.strptime(date_str, "%Y-%m-%d")
+    year, week, _ = dt.isocalendar()
+    return f"{year}-W{week:02d}"
+
+
+def ensure_file():
+    if not os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "w", newline="", encoding="utf-8") as f:
+            csv.DictWriter(f, FIELDS).writeheader()
+
+
+def load_habits():
+    with open(DATA_FILE, "r", newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def save_habits(habits):
+    with open(DATA_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, FIELDS)
+        writer.writeheader()
+        writer.writerows(habits)
+
+
+def next_id(habits):
+    return 1 + max([int(h["id"]) for h in habits], default=0)
+
+
+def ask_nonempty(prompt):
+    while True:
+        text = input(prompt).strip()
+        if text:
+            return text
+        print("Input cannot be empty.")
+
+
+def ask_choice(label, options):
+    options_lower = [o.lower() for o in options]
+    while True:
+        value = input(f"{label} {options}: ").strip().lower()
+        if value in options_lower:
+            return value
+        print(f"Please enter one of: {', '.join(options)}.")
+
+
+def refresh_statuses(habits):
+    today = today_str()
+    current_week = current_week_code()
+    for h in habits:
+        last = h.get("completed_date", "").strip()
+        if not last:
+            h["status"] = "pending"
+            continue
+        if h["frequency"] == "daily":
+            h["status"] = "done" if last == today else "pending"
+        else:
+            last_week = week_code_from_date(last)
+            h["status"] = "done" if last_week == current_week else "pending"
+    return habits
+
+
+def show_habits(habits):
+    if not habits:
+        print("No habits found.")
+        return
+    print(
+        f"{'ID':<3} {'Freq':<7} {'Created':<10} "
+        f"{'Status':<7} {'LastDone':<10} History | Description"
+    )
+    print("-" * 100)
+    for h in habits:
+        history = h.get("completion_history", "")
+        print(
+            f"{h['id']:<3} {h['frequency']:<7} {h['created_date']:<10} "
+            f"{h['status']:<7} {h['completed_date']:<10} "
+            f"{history} | {h['description']}"
+        )
+
+
+def append_completion_to_history(habit, date_str):
+    history = habit.get("completion_history", "").strip()
+    if history:
+        parts = history.split("|")
+        if parts[-1] != date_str:
+            history = history + "|" + date_str
+    else:
+        history = date_str
+    habit["completion_history"] = history
+
+
+def add_habit():
+    habits = load_habits()
+    habits.append(
+        {
+            "id": str(next_id(habits)),
+            "description": ask_nonempty("Description: "),
+            "frequency": ask_choice("Frequency", FREQUENCIES),
+            "created_date": today_str(),
+            "status": "pending",
+            "completed_date": "",
+            "completion_history": "",
+        }
+    )
+    save_habits(habits)
+    print("Habit added.")
+
+
+def change_status_to_done():
+    habits = refresh_statuses(load_habits())
+    save_habits(habits)
+    show_habits(habits)
+    if not habits:
+        return
+    habit_id = ask_nonempty("Enter habit ID to mark as done: ")
+    if not habit_id.isdigit():
+        print("ID must be a number.")
+        return
+    today = today_str()
+    found = False
+    for h in habits:
+        if h["id"] == habit_id:
+            h["status"] = "done"
+            h["completed_date"] = today
+            append_completion_to_history(h, today)
+            found = True
+            break
+    if not found:
+        print("No habit with that ID.")
+        return
+    save_habits(habits)
+    print(f"Habit {habit_id} marked as done.")
+
+
+def remove_habit():
+    habits = load_habits()
+    show_habits(habits)
+    if not habits:
+        return
+    habit_id = ask_nonempty("Enter habit ID to delete: ")
+    before = len(habits)
+    habits = [h for h in habits if h["id"] != habit_id]
+    if len(habits) == before:
+        print("No habit with that ID.")
+        return
+    save_habits(habits)
+    print("Habit deleted.")
+
+
+def filter_habits():
+    habits = refresh_statuses(load_habits())
+    save_habits(habits)
+    if not habits:
+        print("No habits to filter.")
+        return
+    print("Filter by: 1=status 2=frequency")
+    choice = input("Choice: ").strip()
+    if choice == "1":
+        status = ask_choice("Status", STATUSES)
+        result = [h for h in habits if h["status"] == status]
+    elif choice == "2":
+        freq = ask_choice("Frequency", FREQUENCIES)
+        result = [h for h in habits if h["frequency"] == freq]
+    else:
+        print("Invalid choice.")
+        return
+    show_habits(result)
+
+
+def main():
+    ensure_file()
+    habits = refresh_statuses(load_habits())
+    save_habits(habits)
+    while True:
+        print(
+            """
+HabitTrackerRP
+1) Add habit
+2) Mark habit as done
+3) Delete habit
+4) View all habits
+5) Filter habits
+6) Exit
+"""
+        )
+        choice = input("Select 1-6: ").strip()
+        if choice == "1":
+            add_habit()
+        elif choice == "2":
+            change_status_to_done()
+        elif choice == "3":
+            remove_habit()
+        elif choice == "4":
+            show_habits(load_habits())
+        elif choice == "5":
+            filter_habits()
+        elif choice == "6":
+            print("Goodbye!")
+            break
+        else:
+            print("Invalid option.")
+
+
+if __name__ == "__main__":
+    main()
