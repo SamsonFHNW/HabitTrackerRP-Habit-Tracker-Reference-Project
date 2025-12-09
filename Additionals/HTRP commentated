@@ -1,4 +1,4 @@
-# HabitTrackerRP – tutorial version with detailed comments
+# HabitTrackerRP – commentated version for understanding
 # This file is a learning version of main.py.
 # It implements a console-based habit tracker with:
 # - automatic created_date and completed_date
@@ -6,11 +6,9 @@
 # - automatic status reset (pending/done) based on date/week
 # - completion_history: all dates when a habit was completed
 # - filtering by status and frequency
-#
-# The actual submission version removes most of these comments and is more compact.
 
 import csv              # Built-in module to read/write CSV files
-import os               # Built-in module to interact with the operating system (e.g., check if a file exists)
+import os               # Built-in module to interact with the operating system
 from datetime import datetime  # Class to work with dates and times
 
 
