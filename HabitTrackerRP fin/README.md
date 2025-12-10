@@ -1,220 +1,202 @@
-# 📘 HabitTrackerRP
+#  HabitTrackerRP — Habit Tracking Console Application
+*A reference project for the Programming Foundations module (FHNW, BSc BIT)*
 
-This project is a reference implementation for the **Programming Foundations** module.  
-It demonstrates how to design, implement, structure, and document a small console-based Python application using user interaction, data validation, and file processing.
+HabitTrackerRP is a small but complete console-based Python application designed to help users track daily and weekly habits.  
+Although simple in appearance, the project demonstrates core programming concepts such as modular design, input validation, date-based logic, CSV data persistence, and the use of pure Python standard libraries.
 
-HabitTrackerRP enables users to manage simple personal habits by adding tasks, updating their completion status, filtering habits, or removing habits they no longer need. All habits are stored persistently in a CSV file.
 
 ---
 
-1. 🌱 HabitTrackerRP – Habit Tracker Reference Project (Console)
+# 1.  Project Overview
 
-This project is created for the course Programming Foundations (FHNW, BSc BIT).
-Project Goal
+HabitTrackerRP enables users to manage personal habits such as *reading*, *exercising*, or *practicing a skill*.  
+The program uses a textual menu to interact with the user and stores all data inside a `habits.csv` file so that progress is saved between sessions.
 
-The goals of HabitTrackerRP are to:
+### **What the program supports**
+- Adding new habits  
+- Marking habits as done  
+- Automatically resetting habit statuses (daily/weekly)  
+- Viewing all habits in a formatted table  
+- Filtering habits by status or frequency  
+- Deleting habits  
+- Persistent habit storage using CSV  
 
-- Guide students through the complete workflow from **analysis to implementation**  
-- Reinforce Python fundamentals: functions, loops, conditionals, data structures  
-- Demonstrate **file processing** and **data persistence** using CSV  
-- Develop a user-friendly **console interaction** flow  
-- Produce clean, well-structured, and maintainable code  
-- Prepare students for more advanced projects in later modules 
+This offers an ideal learning environment: the program is small enough to understand in one semester, yet rich enough to show how real applications maintain state and apply logic over time.
 
-HabitTrackerRP allows users to manage daily or weekly habits by adding them, marking them as completed, filtering them, and removing them. All habits are saved in a CSV file so their progress is persistent across sessions.
+---
 
-⸻
+# 2.  Analysis
 
-2. 📝 Analysis
+## 2.1 The Problem  
+People often struggle to maintain consistency in their routines. Without a tracking system, it's easy to lose motivation or forget progress.  
+For example:  
+- Did I drink enough water today?  
+- Did I practice piano this week?  
+- Have I exercised regularly?  
 
-Problem
+While many sophisticated habit apps exist, they are often too complex for beginners to understand or too bloated for simple tasks. Students need a system that is both **practical and easy to study**.
 
-People often struggle to keep track of personal habits such as reading, exercising, or drinking enough water. Without a simple system, habits are easily forgotten, making it difficult to stay consistent and motivated.
+## 2.2 Scenario  
+HabitTrackerRP provides users with a lightweight console tool to manage basic habits.  
+It focuses on clarity and simplicity:  
+- A user enters habits they want to track  
+- The system remembers them through a CSV file  
+- Each time the program starts, it automatically updates which habits are marked as *done* or *pending* based on date information  
+- Users can complete habits, filter them for readability, and delete them as needed  
 
-Scenario
+This scenario is realistic for a real beginner software tool: clear functionality, predictable behavior, and transparent data storage.
 
-## HabitTrackerRP supports users by providing a small console-based tool where they can:
-	•	add new habits
-	•	track which habits are done or pending
-	•	automatically reset habits based on time (daily or weekly)
-	•	store their data persistently
+---
 
-## The application updates habit status automatically:
-	•	Daily habits reset each day
-	•	Weekly habits reset each calendar week (ISO week number)
+# 3.  User Stories
 
-This helps users stay aware of what they need to complete for the current day or week.
+HabitTrackerRP was designed with the following user stories in mind:
 
-## User Stories
-	•	As a user, I want to add habits with meaningful descriptions.
-	•	As a user, I want habits to be marked as pending when created.
-	•	As a user, I want to mark habits as done so I can track my progress.
-	•	As a user, I want the system to automatically update habit status based on the date.
-	•	As a user, I want to view all my habits in an easy-to-read table.
-	•	As a user, I want to filter habits by status or frequency.
-	•	As a user, I want my habit data saved between program runs.
+- **As a user, I want to add a habit with a meaningful description so that I know what to complete.**  
+- **As a user, I want habits to start as “pending” so I know which tasks are still open.**  
+- **As a user, I want to mark a habit as done to track my progress.**  
+- **As a user, I want the system to automatically update habits based on the date so I don’t have to reset them myself.**  
+- **As a user, I want to see all my habits in a readable format.**  
+- **As a user, I want to filter habits by status or frequency so I can focus on relevant ones.**  
+- **As a user, I want my data saved so that progress is preserved between program runs.**
 
+These user stories guided the design of the system and its required functionality.
 
-⸻
+---
 
-3. ✅ Project Requirements:
+# 4.  Solution Design
 
-Interactive App (Console Input):
+### 4.1 Main Use Cases  
 
-## The application interacts with the user through a console menu.
-HabitTrackerRP
-1) Add habit
-2) Mark habit as done
-3) Delete habit
-4) View all habits
-5) Filter habits
-6) Exit
-""")
-choice = input("Select 1-6: ").strip()
+---
 
-Use Cases:
+###  **Add Habit**
 
-## Add Habit  
-User enters a description and selects whether the habit is daily or weekly.  
-System automatically sets:
+#### Relevant snippet:
+```python
+habits.append(
+    {
+        "id": str(next_id(habits)),
+        "description": ask_nonempty("Description: "),
+        "frequency": ask_choice("Frequency", FREQUENCIES),
+        "created_date": today_str(),
+        "status": "pending",
+        "completed_date": "",
+        "completion_history": "",
+    }
+)
+```
 
-- `status = pending`  
-- `created_date = today`  
-- `completed_date = ""`  
-- `completion_history = ""`  
+---
 
-### Mark Habit as Done  
-User selects a habit by ID.  
-System:
+###  **Mark Habit as Done**
 
-- sets `status = done`  
-- sets `completed_date = today`  
-- appends `today` to `completion_history` (e.g. `2025-01-21|2025-01-22`)  
+#### Relevant snippet:
+```python
+for h in habits:
+    if h["id"] == habit_id:
+        h["status"] = "done"
+        h["completed_date"] = today
+        append_completion_to_history(h, today)
+```
 
-### Automatic Status Reset (on application start)  
-When the application starts, it loads all habits and updates their status:
+---
 
-- For **daily** habits:
-  - if `completed_date == today` → status stays `done`
-  - otherwise → status becomes `pending`
+###  **Automatic Daily/Weekly Reset**
 
-- For **weekly** habits:
-  - if `completed_date` is in the same ISO week as today → status stays `done`
-  - otherwise → status becomes `pending`
+#### Relevant snippet:
+```python
+if h["frequency"] == "daily":
+    h["status"] = "done" if last == today else "pending"
+else:
+    last_week = week_code_from_date(last)
+    h["status"] = "done" if last_week == current_week else "pending"
+```
 
-Updated statuses are then saved back to the CSV file.
+---
 
-### Delete Habit  
-User selects a habit by ID.  
-System removes the habit from the CSV file.
+###  **Delete Habit**
 
-### View All Habits  
-System displays all habits in a formatted table with:
+#### Relevant snippet:
+```python
+habits = [h for h in habits if h["id"] != habit_id]
+```
 
-- ID  
-- Frequency  
-- Created date  
-- Status (pending/done for current period)  
-- Last completed date  
-- Completion history (all completion dates, separated by `|`)  
-- Description  
+---
 
-### Filter Habits  
-User can filter habits by:
+###  **Filter Habits**
 
-- **Status** (pending/done)  
-- **Frequency** (daily/weekly)  
+#### Relevant snippet:
+```python
+if choice == "1":
+    status = ask_choice("Status", STATUSES)
+    result = [h for h in habits if h["status"] == status]
+```
 
-4.  Data Validation
+---
 
-All user input is validated to prevent crashes and ensure correct data.
+# 5.  Input Validation
 
-## Non-empty input
-
+### Non-empty input
+```python
 def ask_nonempty(prompt):
     while True:
         text = input(prompt).strip()
         if text:
             return text
         print("Input cannot be empty.")
+```
 
-## Choice validation
-
+### Choice validation
+```python
 def ask_choice(label, options):
-    options_lower = [o.lower() for o in options]
-    while True:
-        value = input(f"{label} {options}: ").strip().lower()
-        if value in options_lower:
-            return value
-        print(f"Please enter one of: {', '.join(options)}.")
+    value = input(f"{label} {options}: ").strip().lower()
+```
 
-## Habit ID validation
-
-
-habit_id = ask_nonempty("Enter habit ID to mark as done: ")
+### ID validation
+```python
 if not habit_id.isdigit():
     print("ID must be a number.")
     return
+```
 
-5. File Processing
+---
 
-The application reads and writes all habit data using a CSV file named habits.csv.
+# 6.  File Handling & Persistence
 
-## Creating the file if missing:
-
+### File Creation
+```python
 if not os.path.exists(DATA_FILE):
-    with open(DATA_FILE, "w", newline="", encoding="utf-8") as f:
-        csv.DictWriter(f, FIELDS).writeheader()
+    csv.DictWriter(f, FIELDS).writeheader()
+```
 
-## Loading CSV:
-with open(DATA_FILE, "r", newline="", encoding="utf-8") as f:
-    return list(csv.DictReader(f))
+### Loading data
+```python
+return list(csv.DictReader(f))
+```
 
-## Saving CSV:
+### Saving data
+```python
+writer.writeheader()
+writer.writerows(habits)
+```
 
-with open(DATA_FILE, "w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(f, FIELDS)
-    writer.writeheader()
-    writer.writerows(habits)
+---
 
-# Example habits.csv entry
+# 7.  Program Flow
 
-1,Read book,daily,2025-01-14,done,2025-01-18,2025-01-14|2025-01-18
+1. `ensure_file()` creates the CSV if missing  
+2. `load_habits()` reads all habits  
+3. `refresh_statuses()` updates each habit  
+4. `save_habits()` writes updated statuses back  
+5. Menu options allow the user to interact with the data  
+6. Loop continues until user selects exit  
 
-6. Core Logic
+---
 
-Automatic Daily/Weekly Reset
+# 8.  Repository Structure
 
-# From processing.py:
-
-   if h["frequency"] == "daily":
-       h["status"] = "done" if last == today else "pending"
-   else:
-       last_week = week_code_from_date(last)
-       h["status"] = "done" if last_week == current_week else "pending"
-
-# Marking Habit as Done
-     h["status"] = "done"
-     h["completed_date"] = today
-     append_completion_to_history(h, today)
-
-# Adding Completion History
-     if parts[-1] != date_str:
-          history = history + "|" + date_str
-
-
-# Deleting a Habit
-    habits = [h for h in habits if h["id"] != habit_id]
-
-# Filtering Habits
-    result = [h for h in habits if h["frequency"] == freq]
-
-# or:
-    result = [h for h in habits if h["status"] == status]
-
-
-8. 📂 Repository Structure
-
+```
 HabitTrackerRP/Additionals
 └── src/
     ├── main.py             # main console program
@@ -224,7 +206,7 @@ HabitTrackerRP/Additionals
     ├── processing.py       # habit logic (reset and history)
     └── id_utils.py         # next ID generator
 
-# OR
+# Or
 
 HabitTrackerRP/
 │
@@ -234,20 +216,15 @@ HabitTrackerRP/
 │
 └── README.md               # project documentation
 
+```
 
-Each module handles one responsibility, keeping the code clear and maintainable.
+# 9.  Conclusion
 
-9. 🏁 Conclusion
+HabitTrackerRP is a well-rounded introductory project that teaches:
 
-HabitTrackerRP is a complete and well-structured example of a Python console application.
-It demonstrates all required aspects of the Programming Foundations module:
-	•	user interaction
-	•	input validation
-	•	file handling
-	•	modular code organization
-	•	practical logic (daily/weekly habits)
-
-The system is simple yet functional, easy to extend, and well aligned with the course learning goals.
-
-
-
+- modular programming  
+- user interaction  
+- robust input handling  
+- CSV data storage  
+- date-based logic  
+- basic software documentation  
