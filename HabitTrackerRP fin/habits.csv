@@ -1,8 +1,1 @@
-<<<<<<< HEAD
 id,description,frequency,created_date,status,completed_date,completion_history
-2,asd,daily,2025-12-10,pending,,
-=======
-id,description,frequency,created_date,status,completed_date,completion_history
-1,lol,daily,2025-12-09,pending,,
-2,ajbai,daily,2025-12-09,pending,,
->>>>>>> 964b9d6bba93f048725354211bc3e3f0cef1ba12
