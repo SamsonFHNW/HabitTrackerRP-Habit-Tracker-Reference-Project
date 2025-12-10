@@ -12,8 +12,9 @@ import os               # Built-in module to interact with the operating system
 from datetime import datetime  # Class to work with dates and times
 
 
-# Name of the CSV file we use to store habits
-DATA_FILE = "habits.csv"
+# Name of the CSV file we use to store habits and path it has to be stored in.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(BASE_DIR, "habits.csv")
 
 # Allowed values for habit frequency. A habit is either daily or weekly.
 FREQUENCIES = ["daily", "weekly"]
