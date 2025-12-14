@@ -1,1 +1,8 @@
 id,description,frequency,created_date,status,completed_date,completion_history
+1,cook,daily,2025-12-12,done,2025-12-12,2025-12-12
+2,Gym,weekly,2025-12-12,pending,,
+3,drink 2L water,daily,2025-12-12,done,2025-12-12,2025-12-12
+4,study POM,weekly,2025-12-12,pending,,
+5,study programing,weekly,2025-12-12,done,2025-12-12,2025-12-12
+6,study DB,weekly,2025-12-12,pending,,
+7,catch em all,daily,2025-12-12,done,2025-12-12,2025-12-12
