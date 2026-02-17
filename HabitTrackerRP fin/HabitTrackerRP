@@ -94,12 +94,12 @@ def show_habits(habits):
 
     header = (
         f"{'ID':<3} | "
+        f"{'Description':<20} | "
         f"{'Freq':<6} | "
         f"{'Created':<10} | "
         f"{'Status':<7} | "
         f"{'LastDone':<10} | "
-        f"{'History':<20} | "
-        f"Description"
+        f"History"
     )
     print(header)
     print("-" * len(header))
@@ -108,13 +108,14 @@ def show_habits(habits):
         history = h.get("completion_history", "")
         print(
             f"{h['id']:<3} | "
+            f"{h['description']:<20} | "
             f"{h['frequency']:<6} | "
             f"{h['created_date']:<10} | "
             f"{h['status']:<7} | "
             f"{h['completed_date']:<10} | "
-            f"{history:<20} | "
-            f"{h['description']}"
+            f"{history}"
         )
+
 
 
 def append_completion_to_history(habit, date_str):
